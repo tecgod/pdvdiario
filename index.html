@@ -733,18 +733,21 @@ function mudarAba(aba){
 /* =========================================================
    FORMAS DE PAGAMENTO
    ========================================================= */
-function configurarPayRow(rowId, onSelect){
+function configurarPayRow(rowId, valorInputId, onSelect){
   const row = document.getElementById(rowId);
+  const valorInput = document.getElementById(valorInputId);
   row.querySelectorAll('.payopt').forEach(opt=>{
     opt.addEventListener('click', ()=>{
       row.querySelectorAll('.payopt').forEach(o=>o.classList.remove('selected'));
       opt.classList.add('selected');
       onSelect(opt.dataset.val);
+      // mantém o cursor pronto no campo Valor, sem precisar clicar nele
+      valorInput.focus();
     });
   });
 }
-configurarPayRow('vPayRow', v=>vPagSelecionada=v);
-configurarPayRow('rPayRow', v=>rPagSelecionada=v);
+configurarPayRow('vPayRow', 'vValor', v=>vPagSelecionada=v);
+configurarPayRow('rPayRow', 'rValor', v=>rPagSelecionada=v);
 
 /* =========================================================
    TIPO DE RETIRADA (campo detalhe dinâmico)
