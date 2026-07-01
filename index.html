@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PDV Diário - Combat Fire</title>
+<style>
+  :root{
+    --bg:#0f1116;
+    --bg2:#161a22;
+    --card:#1b1f29;
+    --card2:#20242f;
+    --border:#2a2f3b;
+    --text:#e8e9ec;
+    --muted:#8a8f9c;
+    --accent:#ff6b35;
+    --accent2:#ff8a5c;
+    --green:#3ecf8e;
+    --red:#ff5470;
+    --blue:#4ea1ff;
+    --yellow:#ffc857;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    background:linear-gradient(180deg,var(--bg),#0b0d12 100%);
+    color:var(--text);
+    padding-bottom:60px;
+  }
+  header{
+    padding:18px 16px 14px;
+    background:linear-gradient(135deg,#1a1008,#151821);
+    border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:10;
+  }
+  header h1{
+    margin:0 0 2px;
+    font-size:19px;
+    display:flex; align-items:center; gap:8px;
+  }
+  header h1 .flame{ font-size:20px; }
+  header .sub{ color:var(--muted); font-size:12.5px; }
+  .datebar{
+    display:flex; align-items:center; gap:8px; margin-top:12px;
+  }
+  .datebar button{
+    background:var(--card2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:8px 12px; font-size:15px; cursor:pointer;
+  }
+  .datebar input[type=date]{
+    flex:1; background:var(--card2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:8px 10px; font-size:14px;
+  }
+  .datebar .today-btn{
+    font-size:12px; padding:8px 10px; white-space:nowrap;
+  }
+
+  .syncstatus{
+    display:flex; align-items:center; gap:8px; margin-top:10px; font-size:12px; color:var(--muted);
+  }
+  .syncstatus .dot{
+    width:7px; height:7px; border-radius:50%; background:var(--muted); flex-shrink:0;
+  }
+  .syncstatus .dot.ok{ background:var(--green); }
+  .syncstatus .dot.erro{ background:var(--red); }
+  .syncstatus .dot.sincronizando{ background:var(--yellow); animation:pulse 1s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.3;} }
+  .syncstatus span.txt{ flex:1; }
+  .iconbtn{
+    background:none; border:none; color:var(--muted); font-size:15px; cursor:pointer; padding:2px 4px;
+  }
+  .iconbtn:hover{ color:var(--text); }
+
+  .syncpanel{
+    display:none; margin-top:10px; background:var(--card2); border:1px solid var(--border);
+    border-radius:10px; padding:12px;
+  }
+  .syncpanel.aberto{ display:block; }
+  .syncpanel label{ display:block; font-size:12px; color:var(--muted); margin-bottom:5px; }
+  .syncpanel input[type=text]{
+    width:100%; background:var(--bg2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:9px 10px; font-size:13px; margin-bottom:8px;
+  }
+  .syncpanel .btnrow{ display:flex; gap:8px; }
+  .syncpanel button{
+    flex:1; padding:9px; border-radius:8px; border:1px solid var(--border);
+    background:var(--card); color:var(--text); font-size:13px; cursor:pointer;
+  }
+  .syncpanel button.primary{ background:var(--accent); color:#1a1008; border:none; font-weight:700; }
+  .syncpanel .help{ font-size:11.5px; color:var(--muted); margin-top:8px; line-height:1.5; }
+
+  main{ padding:14px 12px; max-width:640px; margin:0 auto; }
+  .tabs{ display:flex; gap:8px; margin-bottom:14px; }
+  .tab{
+    flex:1; text-align:center; padding:10px; border-radius:10px;
+    background:var(--card); border:1px solid var(--border);
+    cursor:pointer; font-weight:600; font-size:14px; color:var(--muted);
+    transition:.15s;
+  }
+  .tab.active.sales{ background:linear-gradient(135deg,#1a3a2c,#12251c); color:var(--green); border-color:var(--green); }
+  .tab.active.out{ background:linear-gradient(135deg,#3a1a1f,#251215); color:var(--red); border-color:var(--red); }
+
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:14px; margin-bottom:14px;
+  }
+  .card h2{ margin:0 0 12px; font-size:14px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.4px;}
+  label{ display:block; font-size:12.5px; color:var(--muted); margin-bottom:5px; margin-top:10px; }
+  label:first-of-type{ margin-top:0; }
+  select, input[type=text], input[type=number]{
+    width:100%; background:var(--card2); border:1px solid var(--border); color:var(--text);
+    border-radius:9px; padding:10px 11px; font-size:15px;
+  }
+  select:focus, input:focus{ outline:none; border-color:var(--accent); }
+  .valor-wrap{ position:relative; }
+  .valor-wrap span{
+    position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:15px;
+  }
+  .valor-wrap input{ padding-left:34px; }
+
+  .payrow{ display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; margin-top:5px; }
+  .payopt{
+    text-align:center; padding:9px 4px; border-radius:8px; border:1px solid var(--border);
+    background:var(--card2); font-size:12.5px; cursor:pointer; color:var(--muted); font-weight:600;
+  }
+  .payopt.selected{ border-color:var(--accent); color:var(--accent); background:#2a1a12; }
+
+  .btn-lancar{
+    width:100%; margin-top:14px; padding:13px; border:none; border-radius:10px;
+    font-size:15px; font-weight:700; cursor:pointer; color:#0f1116;
+  }
+  .btn-lancar.sales{ background:linear-gradient(135deg,var(--green),#2fa876); }
+  .btn-lancar.out{ background:linear-gradient(135deg,var(--red),#e03a5a); color:#fff; }
+
+  .list-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 0; border-bottom:1px solid var(--border); gap:10px;
+  }
+  .list-item:last-child{ border-bottom:none; }
+  .li-left{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .li-tipo{ font-size:13.5px; font-weight:600; }
+  .li-detalhe{ font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
+  .li-meta{ font-size:11px; color:var(--muted); display:flex; align-items:center; gap:5px; }
+  .li-meta .pend{ color:var(--yellow); }
+  .li-right{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
+  .li-valor{ font-weight:700; font-size:14.5px; }
+  .li-valor.pos{ color:var(--green); }
+  .li-valor.neg{ color:var(--red); }
+  .badge{ font-size:10px; padding:2px 6px; border-radius:6px; font-weight:700; text-transform:uppercase; }
+  .badge.dinheiro{ background:#2a3a1f; color:var(--green); }
+  .badge.pix{ background:#1a2f3a; color:var(--blue); }
+  .badge.debito{ background:#3a2f1a; color:var(--yellow); }
+  .badge.credito{ background:#3a1a2a; color:#ff86c2; }
+  .del-btn{ background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; padding:2px 4px; }
+  .del-btn:hover{ color:var(--red); }
+  .empty{ text-align:center; color:var(--muted); font-size:13px; padding:14px 0; }
+
+  .resumo-section{ margin-top:22px; }
+  .resumo-title{ font-size:15px; font-weight:700; margin:0 0 12px; display:flex; align-items:center; gap:8px; }
+  .saldo-card{
+    background:linear-gradient(135deg,#1c2230,#151a24); border:1px solid var(--border);
+    border-radius:14px; padding:16px; margin-bottom:14px; text-align:center;
+  }
+  .saldo-card .label{ font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px;}
+  .saldo-card .valor{ font-size:28px; font-weight:800; margin-top:4px; }
+  .saldo-card .valor.pos{ color:var(--green); }
+  .saldo-card .valor.neg{ color:var(--red); }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .mini-card{ background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; }
+  .mini-card h3{ margin:0 0 8px; font-size:12px; color:var(--muted); text-transform:uppercase; }
+  .row-line{ display:flex; justify-content:space-between; font-size:13px; padding:4px 0; }
+  .row-line b{ font-weight:700; }
+  .row-line.total{ border-top:1px solid var(--border); margin-top:4px; padding-top:8px; font-size:14px; }
+  .sales-color{ color:var(--green); }
+  .out-color{ color:var(--red); }
+
+  .print-btn{
+    display:block; width:100%; margin-top:16px; padding:12px; border-radius:10px;
+    background:var(--card2); border:1px solid var(--border); color:var(--text); font-size:14px; cursor:pointer;
+  }
+
+  @media print{
+    header, .tabs, .card, .print-btn{ display:none !important; }
+    body{ background:#fff; color:#000; }
+    .resumo-section, .saldo-card, .mini-card{ background:#fff !important; border:1px solid #ccc !important; color:#000 !important; }
+    .row-line, .resumo-title, .saldo-card .valor, .saldo-card .label{ color:#000 !important; }
+  }
+
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.6);
+    z-index:100; align-items:center; justify-content:center; padding:16px;
+  }
+  .modal-overlay.aberto{ display:flex; }
+  .modal-box{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:16px; max-width:600px; width:100%; max-height:85vh; display:flex; flex-direction:column;
+  }
+  .modal-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .modal-header h3{ margin:0; font-size:15px; }
+  .modal-help{ font-size:12px; color:var(--muted); line-height:1.5; margin:0 0 10px; }
+  #codigoGasTexto{
+    flex:1; min-height:280px; background:var(--bg2); border:1px solid var(--border); color:var(--text);
+    border-radius:9px; padding:10px; font-family:'Courier New',monospace; font-size:11.5px; line-height:1.5;
+    resize:vertical; white-space:pre; overflow:auto;
+  }
+  .modal-btnrow{ display:flex; gap:8px; margin-top:10px; }
+  .modal-btnrow button{
+    flex:1; padding:11px; border-radius:9px; border:1px solid var(--border);
+    background:var(--card2); color:var(--text); font-size:13.5px; cursor:pointer; font-weight:600;
+  }
+  .modal-btnrow button.primary{ background:var(--accent); color:#1a1008; border:none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="flame">🔥</span> PDV Diário — Combat Fire</h1>
+  <div class="sub">Controle de vendas e retiradas</div>
+  <div class="datebar">
+    <button id="btnPrev">‹</button>
+    <input type="date" id="dataAtual">
+    <button id="btnNext">›</button>
+    <button class="today-btn" id="btnHoje">Hoje</button>
+  </div>
+
+  <div class="syncstatus">
+    <span class="dot" id="syncDot"></span>
+    <span class="txt" id="syncStatusText">Sincronização não configurada</span>
+    <button class="iconbtn" id="btnSyncNow" title="Sincronizar agora">⟳</button>
+    <button class="iconbtn" id="btnToggleSync" title="Configurar sincronização">⚙️</button>
+  </div>
+
+  <div class="syncpanel" id="syncPanel">
+    <label>URL do Google Apps Script (Web App)</label>
+    <input type="text" id="gasUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+    <div class="btnrow">
+      <button class="primary" id="btnSalvarUrl">Salvar e Sincronizar</button>
+    </div>
+    <div class="btnrow" style="margin-top:8px;">
+      <button id="btnVerCodigoGas">📄 Ver código do Apps Script</button>
+    </div>
+    <div class="help">Cole aqui a URL gerada ao implantar o Apps Script como Web App (acesso: qualquer pessoa). Todos os aparelhos que usarem a mesma URL vão sincronizar entre si.</div>
+
+    <div style="border-top:1px solid var(--border); margin-top:12px; padding-top:12px;">
+      <label style="margin-top:0;">Backup local (segunda camada, independente do Google)</label>
+      <div class="btnrow">
+        <button id="btnExportarBackup">💾 Exportar Backup</button>
+        <button id="btnImportarBackup">📂 Importar Backup</button>
+      </div>
+      <input type="file" id="inputImportarBackup" accept="application/json,.json" style="display:none">
+      <div class="help">A planilha do Google já guarda um histórico (exclusões só ficam marcadas, nada some). Ainda assim, exporte esse arquivo de vez em quando e guarde num lugar seu (Drive, pendrive, e-mail) — ele serve pra restaurar tudo se a planilha for excluída ou a URL parar de funcionar. Importar não apaga nada: os dados são mesclados com o que já está no aparelho.</div>
+    </div>
+  </div>
+</header>
+
+<div class="modal-overlay" id="modalCodigo">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>📄 Código do Apps Script (Code.gs)</h3>
+      <button class="iconbtn" id="btnFecharModal">✕</button>
+    </div>
+    <p class="modal-help">Esse é o backend que roda na sua Planilha Google. Se você perder o arquivo original, copie ou baixe daqui e cole de novo no Apps Script (Extensões &gt; Apps Script) da sua planilha.</p>
+    <textarea id="codigoGasTexto" readonly></textarea>
+    <div class="modal-btnrow">
+      <button class="primary" id="btnCopiarCodigo">📋 Copiar código</button>
+      <button id="btnBaixarCodigo">⬇️ Baixar Code.gs</button>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <div class="tabs">
+    <div class="tab active sales" id="tabVendas" onclick="mudarAba('vendas')">💰 Vendas</div>
+    <div class="tab out" id="tabRetiradas" onclick="mudarAba('retiradas')">📤 Retiradas</div>
+  </div>
+
+  <!-- PAINEL VENDAS -->
+  <div class="panel active" id="painelVendas">
+    <div class="card">
+      <h2>Nova Venda</h2>
+      <label>Descrição</label>
+      <select id="vTipo">
+        <option value="balcao">Vendas Balcão</option>
+        <option value="servicos_empresa">Serviços Empresa</option>
+        <option value="servico_combatfire">Serviço COMBAT FIRE</option>
+      </select>
+
+      <label>Forma de Pagamento</label>
+      <div class="payrow" id="vPayRow">
+        <div class="payopt selected" data-val="dinheiro">Dinheiro</div>
+        <div class="payopt" data-val="pix">Pix</div>
+        <div class="payopt" data-val="debito">Débito</div>
+        <div class="payopt" data-val="credito">Crédito</div>
+      </div>
+
+      <label>Valor</label>
+      <div class="valor-wrap">
+        <span>R$</span>
+        <input type="number" id="vValor" inputmode="decimal" placeholder="0,00" step="0.01" min="0">
+      </div>
+
+      <button class="btn-lancar sales" onclick="lancarVenda()">Lançar Venda</button>
+    </div>
+
+    <div class="card">
+      <h2>Vendas do Dia</h2>
+      <div id="listaVendas"><div class="empty">Nenhuma venda lançada.</div></div>
+    </div>
+  </div>
+
+  <!-- PAINEL RETIRADAS -->
+  <div class="panel" id="painelRetiradas">
+    <div class="card">
+      <h2>Nova Retirada</h2>
+      <label>Tipo</label>
+      <select id="rTipo" onchange="onTipoRetiradaChange()">
+        <option value="pessoal">Conta Pessoal Mensal</option>
+        <option value="fornecedor">Pagamento de Fornecedor</option>
+        <option value="diaria">Retirada Diária</option>
+      </select>
+
+      <div id="rPessoalWrap" style="display:none;">
+        <label>Conta</label>
+        <select id="rPessoalSelect" onchange="onPessoalSelectChange()"></select>
+        <div id="rPessoalNovoWrap" style="display:none;">
+          <label>Nome da nova conta</label>
+          <input type="text" id="rPessoalNovo" placeholder="Ex: Faculdade, Seguro do carro...">
+        </div>
+      </div>
+
+      <div id="rDetalheWrap" style="display:none;">
+        <label id="rDetalheLabel">Fornecedor</label>
+        <input type="text" id="rDetalhe" placeholder="Nome do fornecedor">
+      </div>
+
+      <label>Forma de Pagamento</label>
+      <div class="payrow" id="rPayRow">
+        <div class="payopt selected" data-val="dinheiro">Dinheiro</div>
+        <div class="payopt" data-val="pix">Pix</div>
+        <div class="payopt" data-val="debito">Débito</div>
+        <div class="payopt" data-val="credito">Crédito</div>
+      </div>
+
+      <label>Valor</label>
+      <div class="valor-wrap">
+        <span>R$</span>
+        <input type="number" id="rValor" inputmode="decimal" placeholder="0,00" step="0.01" min="0">
+      </div>
+
+      <button class="btn-lancar out" onclick="lancarRetirada()">Lançar Retirada</button>
+    </div>
+
+    <div class="card">
+      <h2>Retiradas do Dia</h2>
+      <div id="listaRetiradas"><div class="empty">Nenhuma retirada lançada.</div></div>
+    </div>
+  </div>
+
+  <!-- RESUMO -->
+  <div class="resumo-section">
+    <div class="resumo-title">📊 Resumo do Dia</div>
+
+    <div class="saldo-card">
+      <div class="label">Saldo do Dia (Vendas − Retiradas)</div>
+      <div class="valor" id="saldoDia">R$ 0,00</div>
+    </div>
+
+    <div class="grid2">
+      <div class="mini-card">
+        <h3>Vendas por Tipo</h3>
+        <div id="resumoVendasTipo"></div>
+        <div class="row-line total"><span>Total</span><b id="totalVendas" class="sales-color">R$ 0,00</b></div>
+      </div>
+      <div class="mini-card">
+        <h3>Vendas por Pagamento</h3>
+        <div id="resumoVendasPag"></div>
+        <div class="row-line total"><span>Total</span><b id="totalVendasPag" class="sales-color">R$ 0,00</b></div>
+      </div>
+      <div class="mini-card">
+        <h3>Retiradas por Tipo</h3>
+        <div id="resumoRetiradasTipo"></div>
+        <div class="row-line total"><span>Total</span><b id="totalRetiradas" class="out-color">R$ 0,00</b></div>
+      </div>
+      <div class="mini-card">
+        <h3>Retiradas por Pagamento</h3>
+        <div id="resumoRetiradasPag"></div>
+        <div class="row-line total"><span>Total</span><b id="totalRetiradasPag" class="out-color">R$ 0,00</b></div>
+      </div>
+    </div>
+
+    <button class="print-btn" onclick="window.print()">🖨️ Imprimir Resumo</button>
+  </div>
+
+</main>
+
+<textarea id="codigoGasFonte" style="display:none;">/**
+ * BACKEND DO PDV COMBAT FIRE - GOOGLE APPS SCRIPT
+ * ------------------------------------------------
+ * Como instalar:
+ * 1. Crie uma Planilha Google nova (em branco).
+ * 2. Menu Extensões > Apps Script.
+ * 3. Apague o conteúdo do arquivo "Code.gs" e cole todo este código.
+ * 4. Clique em Implantar > Nova implantação.
+ * 5. Tipo: "Aplicativo da Web".
+ *    - Executar como: Eu (seu e-mail)
+ *    - Quem pode acessar: Qualquer pessoa
+ * 6. Clique em Implantar, autorize as permissões pedidas.
+ * 7. Copie a URL do Aplicativo da Web (termina em /exec).
+ * 8. Cole essa URL no ícone de engrenagem do PDV, em cada aparelho.
+ *
+ * Toda vez que você atualizar este código, gere uma NOVA implantação
+ * (ou edite a implantação existente) para a URL continuar funcionando.
+ */
+
+const SHEET_LANC = 'Lancamentos';
+const SHEET_CONTAS = 'ContasPessoais';
+const HEADERS_LANC = ['id','data','categoria','tipo','forma','valor','detalhe','hora','updatedAt','deleted'];
+
+function doGet(e){
+  try{
+    const action = (e.parameter.action || 'getAll');
+    if(action === 'getAll'){
+      const since = Number(e.parameter.since || 0);
+      return responder(buscarTudo(since));
+    }
+    return responder({ error: 'ação desconhecida: ' + action });
+  }catch(err){
+    return responder({ error: String(err) });
+  }
+}
+
+function doPost(e){
+  try{
+    const body = JSON.parse(e.postData.contents);
+    const action = body.action;
+
+    if(action === 'upsertLancamento'){
+      upsertLancamento(body.item);
+      return responder({ ok:true });
+    }
+    if(action === 'addConta'){
+      adicionarConta(body.nome);
+      return responder({ ok:true });
+    }
+    return responder({ error: 'ação desconhecida: ' + action });
+  }catch(err){
+    return responder({ error: String(err) });
+  }
+}
+
+function responder(obj){
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getOuCriarAba(nome, cabecalho){
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(nome);
+  if(!sh){
+    sh = ss.insertSheet(nome);
+    sh.appendRow(cabecalho);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function buscarTudo(since){
+  const shL = getOuCriarAba(SHEET_LANC, HEADERS_LANC);
+  const dadosL = shL.getDataRange().getValues();
+  const lancamentos = [];
+  for(let i = 1; i < dadosL.length; i++){
+    const row = dadosL[i];
+    if(!row[0]) continue; // linha vazia
+    const updatedAt = Number(row[8]) || 0;
+    if(updatedAt > since){
+      lancamentos.push({
+        id: String(row[0]),
+        data: String(row[1]),
+        categoria: String(row[2]),
+        tipo: String(row[3]),
+        forma: String(row[4]),
+        valor: Number(row[5]),
+        detalhe: String(row[6] || ''),
+        hora: String(row[7] || ''),
+        updatedAt: updatedAt,
+        deleted: (row[9] === true || row[9] === 'true' || row[9] === 'TRUE')
+      });
+    }
+  }
+
+  const shC = getOuCriarAba(SHEET_CONTAS, ['nome']);
+  const dadosC = shC.getDataRange().getValues();
+  const contas = [];
+  for(let i = 1; i < dadosC.length; i++){
+    if(dadosC[i][0]) contas.push(String(dadosC[i][0]));
+  }
+
+  return { lancamentos: lancamentos, contas: contas, serverTime: Date.now() };
+}
+
+function upsertLancamento(item){
+  const sh = getOuCriarAba(SHEET_LANC, HEADERS_LANC);
+  const dados = sh.getDataRange().getValues();
+  let linhaExistente = -1;
+  for(let i = 1; i < dados.length; i++){
+    if(String(dados[i][0]) === String(item.id)){
+      linhaExistente = i + 1; // linha real na planilha (1-indexed)
+      break;
+    }
+  }
+
+  const valores = [
+    String(item.id),
+    String(item.data),
+    String(item.categoria),
+    String(item.tipo),
+    String(item.forma),
+    Number(item.valor),
+    String(item.detalhe || ''),
+    String(item.hora || ''),
+    Number(item.updatedAt),
+    item.deleted ? true : false
+  ];
+
+  if(linhaExistente === -1){
+    sh.appendRow(valores);
+  } else {
+    sh.getRange(linhaExistente, 1, 1, valores.length).setValues([valores]);
+  }
+}
+
+function adicionarConta(nome){
+  if(!nome) return;
+  const sh = getOuCriarAba(SHEET_CONTAS, ['nome']);
+  const dados = sh.getDataRange().getValues();
+  for(let i = 1; i < dados.length; i++){
+    if(String(dados[i][0]).toLowerCase() === String(nome).toLowerCase()) return; // já existe
+  }
+  sh.appendRow([nome]);
+}
+</textarea>
+
+<script>
+/* =========================================================
+   CONFIG / HELPERS
+   ========================================================= */
+const LANC_KEY = 'pdv_combatfire_lancamentos_v2';
+const LANC_KEY_ANTIGA = 'pdv_combatfire_data_v1';
+const CONTAS_KEY = 'pdv_combatfire_contas_pessoais_v1';
+const CONTAS_PENDENTES_KEY = 'pdv_combatfire_contas_pendentes_v1';
+const CONFIG_KEY = 'pdv_combatfire_config_v1';
+
+const LABELS_VENDA = {
+  balcao: 'Vendas Balcão',
+  servicos_empresa: 'Serviços Empresa',
+  servico_combatfire: 'Serviço COMBAT FIRE'
+};
+const LABELS_RETIRADA = {
+  pessoal: 'Conta Pessoal Mensal',
+  fornecedor: 'Pagamento de Fornecedor',
+  diaria: 'Retirada Diária'
+};
+const LABELS_PAG = { dinheiro:'Dinheiro', pix:'Pix', debito:'Débito', credito:'Crédito' };
+
+const DEFAULT_CONTAS = ['Dízimo','Pensão','Cartão','Plano de Saúde Sarah','Celular','Internet','PGMEI conta da empresa','Energia'];
+const VAL_NOVA_CONTA = '__nova__';
+
+function fmtMoeda(v){
+  return (v||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+}
+// Evita bug de fuso horário (UTC-3 Fortaleza) - nunca usar toISOString() pra data local
+function dataLocalStr(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function horaLocalStr(d){
+  return d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+}
+function parseDataLocal(str){
+  const [y,m,d] = str.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function gerarId(){
+  return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+}
+
+/* =========================================================
+   STORAGE - LANÇAMENTOS (lista plana, com sync por id/updatedAt)
+   ========================================================= */
+function getLancamentos(){
+  try{
+    const raw = localStorage.getItem(LANC_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){
+    console.error('Erro ao carregar lançamentos', e);
+    return [];
+  }
+}
+function salvarLancamentos(lista){
+  try{
+    localStorage.setItem(LANC_KEY, JSON.stringify(lista));
+  }catch(e){
+    console.error('Erro ao salvar lançamentos', e);
+    alert('Não foi possível salvar os dados. Verifique o espaço de armazenamento do navegador.');
+  }
+}
+function migrarDadosAntigos(){
+  if(localStorage.getItem(LANC_KEY)) return;
+  const raw = localStorage.getItem(LANC_KEY_ANTIGA);
+  if(!raw){ salvarLancamentos([]); return; }
+  try{
+    const antigo = JSON.parse(raw);
+    const lista = [];
+    Object.keys(antigo).forEach(dataStr=>{
+      const dia = antigo[dataStr] || {};
+      (dia.vendas||[]).forEach(v=>{
+        lista.push({ id:'v_'+v.id, data:dataStr, categoria:'venda', tipo:v.tipo, forma:v.forma,
+          valor:v.valor, detalhe:'', hora:v.hora, updatedAt:v.id, deleted:false, synced:false });
+      });
+      (dia.retiradas||[]).forEach(r=>{
+        lista.push({ id:'r_'+r.id, data:dataStr, categoria:'retirada', tipo:r.tipo, forma:r.forma,
+          valor:r.valor, detalhe:r.detalhe||'', hora:r.hora, updatedAt:r.id, deleted:false, synced:false });
+      });
+    });
+    salvarLancamentos(lista);
+  }catch(e){
+    console.error('Erro ao migrar dados antigos', e);
+    salvarLancamentos([]);
+  }
+}
+
+function getLancamentosDoDia(dataStr){
+  return getLancamentos().filter(l => l.data === dataStr && !l.deleted);
+}
+
+/* =========================================================
+   STORAGE - CONTAS PESSOAIS
+   ========================================================= */
+function getContasPessoais(){
+  try{
+    const raw = localStorage.getItem(CONTAS_KEY);
+    if(raw) return JSON.parse(raw);
+    salvarContasPessoais(DEFAULT_CONTAS);
+    return DEFAULT_CONTAS.slice();
+  }catch(e){
+    console.error('Erro ao carregar contas pessoais', e);
+    return DEFAULT_CONTAS.slice();
+  }
+}
+function salvarContasPessoais(lista){ localStorage.setItem(CONTAS_KEY, JSON.stringify(lista)); }
+function addContaPessoal(nome){
+  const lista = getContasPessoais();
+  const jaExiste = lista.some(c => c.toLowerCase() === nome.toLowerCase());
+  if(!jaExiste){
+    lista.push(nome);
+    salvarContasPessoais(lista);
+    marcarContaPendente(nome);
+  }
+}
+function marcarContaPendente(nome){
+  const lista = getContasPendentes();
+  if(!lista.includes(nome)){
+    lista.push(nome);
+    localStorage.setItem(CONTAS_PENDENTES_KEY, JSON.stringify(lista));
+  }
+}
+function getContasPendentes(){
+  const raw = localStorage.getItem(CONTAS_PENDENTES_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+function limparContasPendentes(){ localStorage.setItem(CONTAS_PENDENTES_KEY, JSON.stringify([])); }
+
+function popularContasSelect(){
+  const select = document.getElementById('rPessoalSelect');
+  const lista = getContasPessoais();
+  select.innerHTML = lista.map(c => `<option value="${c}">${c}</option>`).join('')
+    + `<option value="${VAL_NOVA_CONTA}">+ Incluir nova opção...</option>`;
+}
+function onPessoalSelectChange(){
+  const val = document.getElementById('rPessoalSelect').value;
+  const novoWrap = document.getElementById('rPessoalNovoWrap');
+  if(val === VAL_NOVA_CONTA){
+    novoWrap.style.display = 'block';
+    document.getElementById('rPessoalNovo').focus();
+  } else {
+    novoWrap.style.display = 'none';
+    document.getElementById('rPessoalNovo').value = '';
+  }
+}
+
+/* =========================================================
+   CONFIG DE SINCRONIZAÇÃO
+   ========================================================= */
+function getConfig(){
+  try{
+    const raw = localStorage.getItem(CONFIG_KEY);
+    return raw ? JSON.parse(raw) : { gasUrl:'', lastSync:0 };
+  }catch(e){ return { gasUrl:'', lastSync:0 }; }
+}
+function salvarConfig(cfg){ localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); }
+
+function setSyncStatus(texto, estado){
+  document.getElementById('syncStatusText').textContent = texto;
+  const dot = document.getElementById('syncDot');
+  dot.className = 'dot' + (estado ? ' ' + estado : '');
+}
+
+/* =========================================================
+   ESTADO
+   ========================================================= */
+let dataAtualStr = dataLocalStr(new Date());
+let vPagSelecionada = 'dinheiro';
+let rPagSelecionada = 'dinheiro';
+let sincronizando = false;
+
+/* =========================================================
+   ABAS
+   ========================================================= */
+function mudarAba(aba){
+  document.getElementById('painelVendas').classList.toggle('active', aba==='vendas');
+  document.getElementById('painelRetiradas').classList.toggle('active', aba==='retiradas');
+  document.getElementById('tabVendas').classList.toggle('active', aba==='vendas');
+  document.getElementById('tabRetiradas').classList.toggle('active', aba==='retiradas');
+}
+
+/* =========================================================
+   FORMAS DE PAGAMENTO
+   ========================================================= */
+function configurarPayRow(rowId, onSelect){
+  const row = document.getElementById(rowId);
+  row.querySelectorAll('.payopt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      row.querySelectorAll('.payopt').forEach(o=>o.classList.remove('selected'));
+      opt.classList.add('selected');
+      onSelect(opt.dataset.val);
+    });
+  });
+}
+configurarPayRow('vPayRow', v=>vPagSelecionada=v);
+configurarPayRow('rPayRow', v=>rPagSelecionada=v);
+
+/* =========================================================
+   TIPO DE RETIRADA (campo detalhe dinâmico)
+   ========================================================= */
+function onTipoRetiradaChange(){
+  const tipo = document.getElementById('rTipo').value;
+  const pessoalWrap = document.getElementById('rPessoalWrap');
+  const wrap = document.getElementById('rDetalheWrap');
+  const label = document.getElementById('rDetalheLabel');
+  const input = document.getElementById('rDetalhe');
+
+  if(tipo === 'pessoal'){
+    pessoalWrap.style.display = 'block';
+    wrap.style.display = 'none';
+    input.value = '';
+    popularContasSelect();
+    document.getElementById('rPessoalNovoWrap').style.display = 'none';
+    document.getElementById('rPessoalNovo').value = '';
+  } else if(tipo === 'fornecedor'){
+    pessoalWrap.style.display = 'none';
+    wrap.style.display = 'block';
+    label.textContent = 'Fornecedor';
+    input.placeholder = 'Nome do fornecedor';
+  } else if(tipo === 'diaria'){
+    pessoalWrap.style.display = 'none';
+    wrap.style.display = 'block';
+    label.textContent = 'Descrição da retirada';
+    input.placeholder = 'Ex: compra de arroz, feijão, gás...';
+  } else {
+    pessoalWrap.style.display = 'none';
+    wrap.style.display = 'none';
+    input.value = '';
+  }
+}
+
+/* =========================================================
+   LANÇAMENTOS
+   ========================================================= */
+function lancarVenda(){
+  const tipo = document.getElementById('vTipo').value;
+  const valorInput = document.getElementById('vValor');
+  const valor = parseFloat(valorInput.value);
+  if(!valor || valor <= 0){
+    alert('Informe um valor válido para a venda.');
+    valorInput.focus();
+    return;
+  }
+
+  const lista = getLancamentos();
+  lista.push({
+    id: gerarId(), data: dataAtualStr, categoria:'venda', tipo, forma: vPagSelecionada,
+    valor, detalhe:'', hora: horaLocalStr(new Date()), updatedAt: Date.now(), deleted:false, synced:false
+  });
+  salvarLancamentos(lista);
+
+  valorInput.value = '';
+  renderizarTudo();
+  valorInput.focus();
+  syncAgora(false);
+}
+
+function lancarRetirada(){
+  const tipo = document.getElementById('rTipo').value;
+  const valorInput = document.getElementById('rValor');
+  const valor = parseFloat(valorInput.value);
+
+  if(!valor || valor <= 0){
+    alert('Informe um valor válido para a retirada.');
+    valorInput.focus();
+    return;
+  }
+
+  let detalhe = '';
+
+  if(tipo === 'pessoal'){
+    const select = document.getElementById('rPessoalSelect');
+    const novoInput = document.getElementById('rPessoalNovo');
+    if(select.value === VAL_NOVA_CONTA){
+      const novoNome = novoInput.value.trim();
+      if(!novoNome){
+        alert('Informe o nome da nova conta.');
+        novoInput.focus();
+        return;
+      }
+      detalhe = novoNome;
+      addContaPessoal(novoNome);
+    } else {
+      detalhe = select.value;
+    }
+  } else {
+    const detalheInput = document.getElementById('rDetalhe');
+    detalhe = detalheInput.value.trim();
+    if(tipo === 'fornecedor' && !detalhe){
+      alert('Informe o nome do fornecedor.');
+      detalheInput.focus();
+      return;
+    }
+    if(tipo === 'diaria' && !detalhe){
+      alert('Descreva o motivo da retirada diária.');
+      detalheInput.focus();
+      return;
+    }
+  }
+
+  const lista = getLancamentos();
+  lista.push({
+    id: gerarId(), data: dataAtualStr, categoria:'retirada', tipo, forma: rPagSelecionada,
+    valor, detalhe, hora: horaLocalStr(new Date()), updatedAt: Date.now(), deleted:false, synced:false
+  });
+  salvarLancamentos(lista);
+
+  valorInput.value = '';
+  document.getElementById('rDetalhe').value = '';
+  document.getElementById('rPessoalNovo').value = '';
+  document.getElementById('rPessoalNovoWrap').style.display = 'none';
+  if(tipo === 'pessoal') popularContasSelect();
+
+  renderizarTudo();
+  valorInput.focus();
+  syncAgora(false);
+}
+
+function excluirLancamento(id){
+  const lista = getLancamentos();
+  const item = lista.find(l => l.id === id);
+  if(!item) return;
+  item.deleted = true;
+  item.synced = false;
+  item.updatedAt = Date.now();
+  salvarLancamentos(lista);
+  renderizarTudo();
+  syncAgora(false);
+}
+
+/* =========================================================
+   RENDERIZAÇÃO
+   ========================================================= */
+function renderizarListas(){
+  const doDia = getLancamentosDoDia(dataAtualStr);
+  const vendas = doDia.filter(l => l.categoria === 'venda');
+  const retiradas = doDia.filter(l => l.categoria === 'retirada');
+
+  const listaVendas = document.getElementById('listaVendas');
+  if(vendas.length === 0){
+    listaVendas.innerHTML = '<div class="empty">Nenhuma venda lançada.</div>';
+  } else {
+    listaVendas.innerHTML = vendas.slice().reverse().map(v=>`
+      <div class="list-item">
+        <div class="li-left">
+          <span class="li-tipo">${LABELS_VENDA[v.tipo] || v.tipo}</span>
+          <span class="li-meta">${v.hora}${!v.synced ? ' <span class="pend">· aguardando sync</span>' : ''}</span>
+        </div>
+        <div class="li-right">
+          <span class="badge ${v.forma}">${LABELS_PAG[v.forma]}</span>
+          <span class="li-valor pos">${fmtMoeda(v.valor)}</span>
+          <button class="del-btn" onclick="excluirLancamento('${v.id}')">×</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const listaRetiradas = document.getElementById('listaRetiradas');
+  if(retiradas.length === 0){
+    listaRetiradas.innerHTML = '<div class="empty">Nenhuma retirada lançada.</div>';
+  } else {
+    listaRetiradas.innerHTML = retiradas.slice().reverse().map(r=>`
+      <div class="list-item">
+        <div class="li-left">
+          <span class="li-tipo">${LABELS_RETIRADA[r.tipo] || r.tipo}</span>
+          <span class="li-detalhe">${r.detalhe ? r.detalhe : ''}</span>
+          <span class="li-meta">${r.hora}${!r.synced ? ' <span class="pend">· aguardando sync</span>' : ''}</span>
+        </div>
+        <div class="li-right">
+          <span class="badge ${r.forma}">${LABELS_PAG[r.forma]}</span>
+          <span class="li-valor neg">${fmtMoeda(r.valor)}</span>
+          <button class="del-btn" onclick="excluirLancamento('${r.id}')">×</button>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+function renderizarResumo(){
+  const doDia = getLancamentosDoDia(dataAtualStr);
+  const vendas = doDia.filter(l => l.categoria === 'venda');
+  const retiradas = doDia.filter(l => l.categoria === 'retirada');
+
+  const vendasPorTipo = {}; Object.keys(LABELS_VENDA).forEach(k=>vendasPorTipo[k]=0);
+  const vendasPorPag = {dinheiro:0, pix:0, debito:0, credito:0};
+  let totalVendas = 0;
+  vendas.forEach(v=>{
+    vendasPorTipo[v.tipo] = (vendasPorTipo[v.tipo]||0) + v.valor;
+    vendasPorPag[v.forma] += v.valor;
+    totalVendas += v.valor;
+  });
+
+  const retiradasPorTipo = {}; Object.keys(LABELS_RETIRADA).forEach(k=>retiradasPorTipo[k]=0);
+  const retiradasPorPag = {dinheiro:0, pix:0, debito:0, credito:0};
+  let totalRetiradas = 0;
+  retiradas.forEach(r=>{
+    retiradasPorTipo[r.tipo] = (retiradasPorTipo[r.tipo]||0) + r.valor;
+    retiradasPorPag[r.forma] += r.valor;
+    totalRetiradas += r.valor;
+  });
+
+  document.getElementById('resumoVendasTipo').innerHTML = Object.keys(LABELS_VENDA).map(k=>`
+    <div class="row-line"><span>${LABELS_VENDA[k]}</span><span>${fmtMoeda(vendasPorTipo[k])}</span></div>
+  `).join('');
+  document.getElementById('totalVendas').textContent = fmtMoeda(totalVendas);
+
+  document.getElementById('resumoVendasPag').innerHTML = Object.keys(LABELS_PAG).map(k=>`
+    <div class="row-line"><span>${LABELS_PAG[k]}</span><span>${fmtMoeda(vendasPorPag[k])}</span></div>
+  `).join('');
+  document.getElementById('totalVendasPag').textContent = fmtMoeda(totalVendas);
+
+  document.getElementById('resumoRetiradasTipo').innerHTML = Object.keys(LABELS_RETIRADA).map(k=>`
+    <div class="row-line"><span>${LABELS_RETIRADA[k]}</span><span>${fmtMoeda(retiradasPorTipo[k])}</span></div>
+  `).join('');
+  document.getElementById('totalRetiradas').textContent = fmtMoeda(totalRetiradas);
+
+  document.getElementById('resumoRetiradasPag').innerHTML = Object.keys(LABELS_PAG).map(k=>`
+    <div class="row-line"><span>${LABELS_PAG[k]}</span><span>${fmtMoeda(retiradasPorPag[k])}</span></div>
+  `).join('');
+  document.getElementById('totalRetiradasPag').textContent = fmtMoeda(totalRetiradas);
+
+  const saldo = totalVendas - totalRetiradas;
+  const saldoEl = document.getElementById('saldoDia');
+  saldoEl.textContent = fmtMoeda(saldo);
+  saldoEl.className = 'valor ' + (saldo >= 0 ? 'pos' : 'neg');
+}
+
+function renderizarTudo(){
+  renderizarListas();
+  renderizarResumo();
+}
+
+/* =========================================================
+   NAVEGAÇÃO DE DATA
+   ========================================================= */
+function atualizarCamposData(){
+  document.getElementById('dataAtual').value = dataAtualStr;
+  onTipoRetiradaChange();
+  renderizarTudo();
+}
+document.getElementById('dataAtual').addEventListener('change', (e)=>{
+  dataAtualStr = e.target.value;
+  atualizarCamposData();
+});
+document.getElementById('btnPrev').addEventListener('click', ()=>{
+  const d = parseDataLocal(dataAtualStr); d.setDate(d.getDate()-1);
+  dataAtualStr = dataLocalStr(d); atualizarCamposData();
+});
+document.getElementById('btnNext').addEventListener('click', ()=>{
+  const d = parseDataLocal(dataAtualStr); d.setDate(d.getDate()+1);
+  dataAtualStr = dataLocalStr(d); atualizarCamposData();
+});
+document.getElementById('btnHoje').addEventListener('click', ()=>{
+  dataAtualStr = dataLocalStr(new Date());
+  atualizarCamposData();
+});
+
+/* =========================================================
+   SINCRONIZAÇÃO COM GOOGLE SHEETS (Apps Script Web App)
+   ========================================================= */
+document.getElementById('btnToggleSync').addEventListener('click', ()=>{
+  document.getElementById('syncPanel').classList.toggle('aberto');
+});
+document.getElementById('btnSyncNow').addEventListener('click', ()=> syncAgora(true));
+document.getElementById('btnSalvarUrl').addEventListener('click', ()=>{
+  const url = document.getElementById('gasUrlInput').value.trim();
+  if(!url){ alert('Cole a URL do Apps Script antes de salvar.'); return; }
+  const cfg = getConfig();
+  cfg.gasUrl = url;
+  salvarConfig(cfg);
+  document.getElementById('syncPanel').classList.remove('aberto');
+  syncAgora(true);
+});
+
+async function enviarLancamento(url, item){
+  await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action:'upsertLancamento', item })
+  });
+}
+async function enviarConta(url, nome){
+  await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action:'addConta', nome })
+  });
+}
+
+function mesclarLancamentosRemotos(remotos){
+  if(!remotos || !remotos.length) return;
+  const locais = getLancamentos();
+  const porId = {};
+  locais.forEach(l => porId[l.id] = l);
+
+  remotos.forEach(r=>{
+    const existente = porId[r.id];
+    if(!existente || (r.updatedAt||0) >= (existente.updatedAt||0)){
+      porId[r.id] = { ...r, synced:true };
+    }
+  });
+
+  salvarLancamentos(Object.values(porId));
+}
+function mesclarContasRemotas(remotasContas){
+  if(!remotasContas || !remotasContas.length) return;
+  const local = getContasPessoais();
+  let mudou = false;
+  remotasContas.forEach(nome=>{
+    if(!local.some(c => c.toLowerCase() === nome.toLowerCase())){
+      local.push(nome);
+      mudou = true;
+    }
+  });
+  if(mudou) salvarContasPessoais(local);
+}
+
+async function syncAgora(manual){
+  const cfg = getConfig();
+  document.getElementById('gasUrlInput').value = cfg.gasUrl || '';
+
+  if(!cfg.gasUrl){
+    if(manual) alert('Cole e salve a URL do Apps Script antes de sincronizar.');
+    setSyncStatus('Sincronização não configurada');
+    return;
+  }
+  if(sincronizando) return;
+  sincronizando = true;
+  setSyncStatus('Sincronizando...', 'sincronizando');
+
+  try{
+    // 1. envia lançamentos pendentes (novos ou excluídos localmente)
+    const lista = getLancamentos();
+    const pendentes = lista.filter(l => !l.synced);
+    for(const item of pendentes){
+      await enviarLancamento(cfg.gasUrl, item);
+      item.synced = true;
+    }
+    if(pendentes.length) salvarLancamentos(lista);
+
+    // 2. envia contas pessoais novas
+    const contasPendentes = getContasPendentes();
+    for(const nome of contasPendentes){
+      await enviarConta(cfg.gasUrl, nome);
+    }
+    if(contasPendentes.length) limparContasPendentes();
+
+    // 3. busca alterações do servidor desde a última sincronização
+    const resp = await fetch(`${cfg.gasUrl}?action=getAll&since=${cfg.lastSync||0}`);
+    const json = await resp.json();
+    if(json.error) throw new Error(json.error);
+
+    mesclarLancamentosRemotos(json.lancamentos);
+    mesclarContasRemotas(json.contas);
+
+    cfg.lastSync = json.serverTime || Date.now();
+    salvarConfig(cfg);
+
+    setSyncStatus('Sincronizado às ' + horaLocalStr(new Date()), 'ok');
+    if(document.getElementById('rTipo').value === 'pessoal') popularContasSelect();
+    renderizarTudo();
+  }catch(err){
+    console.error('Erro de sincronização', err);
+    setSyncStatus('Falha na sincronização — tentando de novo em breve', 'erro');
+  }finally{
+    sincronizando = false;
+  }
+}
+
+// sincroniza automaticamente a cada 8 segundos e quando a aba volta ao foco
+setInterval(()=> syncAgora(false), 8000);
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden) syncAgora(false);
+});
+
+/* =========================================================
+   BACKUP LOCAL (segunda camada, independente do Google)
+   ========================================================= */
+function coletarDadosBackup(){
+  return {
+    app: 'pdv_combatfire_backup',
+    versao: 1,
+    exportadoEm: new Date().toISOString(),
+    lancamentos: getLancamentos(),
+    contasPessoais: getContasPessoais()
+  };
+}
+
+function validarBackup(dados){
+  return !!dados && typeof dados === 'object'
+    && Array.isArray(dados.lancamentos)
+    && Array.isArray(dados.contasPessoais);
+}
+
+// Mescla o backup com os dados locais SEM apagar nada:
+// para cada lançamento, mantém a versão com updatedAt mais recente.
+// Itens restaurados/atualizados voltam como "não sincronizados" pra
+// serem reenviados à planilha na próxima sincronização.
+function mesclarBackupLocal(dados){
+  const locais = getLancamentos();
+  const porId = {};
+  locais.forEach(l => porId[l.id] = l);
+
+  let restaurados = 0, atualizados = 0;
+  dados.lancamentos.forEach(item=>{
+    const existente = porId[item.id];
+    if(!existente){
+      porId[item.id] = { ...item, synced:false };
+      restaurados++;
+    } else if((item.updatedAt||0) > (existente.updatedAt||0)){
+      porId[item.id] = { ...item, synced:false };
+      atualizados++;
+    }
+  });
+  salvarLancamentos(Object.values(porId));
+
+  const contasLocais = getContasPessoais();
+  let contasNovas = 0;
+  (dados.contasPessoais||[]).forEach(nome=>{
+    if(nome && !contasLocais.some(c => c.toLowerCase() === String(nome).toLowerCase())){
+      contasLocais.push(nome);
+      marcarContaPendente(nome);
+      contasNovas++;
+    }
+  });
+  salvarContasPessoais(contasLocais);
+
+  return { restaurados, atualizados, contasNovas };
+}
+
+function exportarBackup(){
+  const dados = coletarDadosBackup();
+  const json = JSON.stringify(dados, null, 2);
+  const blob = new Blob([json], { type:'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const agora = new Date();
+  const carimbo = `${dataLocalStr(agora)}_${String(agora.getHours()).padStart(2,'0')}${String(agora.getMinutes()).padStart(2,'0')}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `backup_pdv_combatfire_${carimbo}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('btnExportarBackup').addEventListener('click', exportarBackup);
+
+document.getElementById('btnImportarBackup').addEventListener('click', ()=>{
+  document.getElementById('inputImportarBackup').click();
+});
+
+document.getElementById('inputImportarBackup').addEventListener('change', (e)=>{
+  const arquivo = e.target.files[0];
+  if(!arquivo) return;
+
+  const leitor = new FileReader();
+  leitor.onload = (ev)=>{
+    try{
+      const dados = JSON.parse(ev.target.result);
+      if(!validarBackup(dados)){
+        alert('Arquivo inválido. Selecione um arquivo gerado pelo botão "💾 Exportar Backup" deste aplicativo.');
+        return;
+      }
+
+      const dataBackup = dados.exportadoEm ? new Date(dados.exportadoEm).toLocaleString('pt-BR') : 'data desconhecida';
+      const confirmar = confirm(
+        `Backup de ${dataBackup}\n` +
+        `${dados.lancamentos.length} lançamento(s) e ${dados.contasPessoais.length} conta(s) pessoal(is) no arquivo.\n\n` +
+        `Esses dados serão MESCLADOS com o que já existe neste aparelho — nada é apagado, e de cada lançamento fica sempre a versão mais recente. Em seguida o app tentará sincronizar tudo de novo com a planilha.\n\n` +
+        `Deseja continuar?`
+      );
+      if(!confirmar) return;
+
+      const resultado = mesclarBackupLocal(dados);
+      atualizarCamposData();
+      if(document.getElementById('rTipo').value === 'pessoal') popularContasSelect();
+
+      alert(
+        `Backup importado com sucesso.\n\n` +
+        `• ${resultado.restaurados} lançamento(s) restaurado(s)\n` +
+        `• ${resultado.atualizados} lançamento(s) atualizado(s)\n` +
+        `• ${resultado.contasNovas} conta(s) pessoal(is) nova(s)\n\n` +
+        `Sincronizando com a planilha agora...`
+      );
+      syncAgora(true);
+    }catch(err){
+      console.error('Erro ao importar backup', err);
+      alert('Não foi possível ler esse arquivo. Verifique se é um .json de backup válido gerado por este app.');
+    }finally{
+      e.target.value = '';
+    }
+  };
+  leitor.readAsText(arquivo);
+});
+
+/* =========================================================
+   MODAL - CÓDIGO DO APPS SCRIPT
+   ========================================================= */
+document.getElementById('btnVerCodigoGas').addEventListener('click', ()=>{
+  const codigo = document.getElementById('codigoGasFonte').value;
+  document.getElementById('codigoGasTexto').value = codigo;
+  document.getElementById('modalCodigo').classList.add('aberto');
+});
+document.getElementById('btnFecharModal').addEventListener('click', ()=>{
+  document.getElementById('modalCodigo').classList.remove('aberto');
+});
+document.getElementById('modalCodigo').addEventListener('click', (e)=>{
+  if(e.target.id === 'modalCodigo') document.getElementById('modalCodigo').classList.remove('aberto');
+});
+document.getElementById('btnCopiarCodigo').addEventListener('click', async ()=>{
+  const codigo = document.getElementById('codigoGasFonte').value;
+  try{
+    await navigator.clipboard.writeText(codigo);
+    const btn = document.getElementById('btnCopiarCodigo');
+    const textoOriginal = btn.textContent;
+    btn.textContent = '✅ Copiado!';
+    setTimeout(()=> btn.textContent = textoOriginal, 1800);
+  }catch(e){
+    // fallback pra navegadores sem permissão de clipboard
+    const ta = document.getElementById('codigoGasTexto');
+    ta.select();
+    document.execCommand('copy');
+    alert('Código copiado.');
+  }
+});
+document.getElementById('btnBaixarCodigo').addEventListener('click', ()=>{
+  const codigo = document.getElementById('codigoGasFonte').value;
+  const blob = new Blob([codigo], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'Code.gs';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+/* =========================================================
+   ENTER PARA LANÇAR
+   ========================================================= */
+document.getElementById('vValor').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); lancarVenda(); }
+});
+document.getElementById('rValor').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); lancarRetirada(); }
+});
+
+/* =========================================================
+   INIT
+   ========================================================= */
+migrarDadosAntigos();
+atualizarCamposData();
+{
+  const cfg = getConfig();
+  document.getElementById('gasUrlInput').value = cfg.gasUrl || '';
+  if(cfg.gasUrl) syncAgora(false);
+}
+</script>
+
+</body>
+</html>
