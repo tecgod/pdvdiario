@@ -523,11 +523,18 @@ function getOuCriarAba(nome, cabecalho){
   return sh;
 }
 
+// Detecta se a primeira linha é mesmo o cabeçalho (evita pular a 1ª linha
+// de dados de verdade caso o título tenha sido apagado sem querer).
+function temCabecalho(dados, primeiraColunaEsperada){
+  return dados.length > 0 && String(dados[0][0]).trim().toLowerCase() === primeiraColunaEsperada;
+}
+
 function buscarTudo(since){
   const shL = getOuCriarAba(SHEET_LANC, HEADERS_LANC);
   const dadosL = shL.getDataRange().getValues();
+  const inicioL = temCabecalho(dadosL, 'id') ? 1 : 0;
   const lancamentos = [];
-  for(let i = 1; i < dadosL.length; i++){
+  for(let i = inicioL; i < dadosL.length; i++){
     const row = dadosL[i];
     if(!row[0]) continue; // linha vazia
     const updatedAt = Number(row[8]) || 0;
@@ -549,8 +556,9 @@ function buscarTudo(since){
 
   const shC = getOuCriarAba(SHEET_CONTAS, ['nome']);
   const dadosC = shC.getDataRange().getValues();
+  const inicioC = temCabecalho(dadosC, 'nome') ? 1 : 0;
   const contas = [];
-  for(let i = 1; i < dadosC.length; i++){
+  for(let i = inicioC; i < dadosC.length; i++){
     if(dadosC[i][0]) contas.push(String(dadosC[i][0]));
   }
 
@@ -560,8 +568,9 @@ function buscarTudo(since){
 function upsertLancamento(item){
   const sh = getOuCriarAba(SHEET_LANC, HEADERS_LANC);
   const dados = sh.getDataRange().getValues();
+  const inicio = temCabecalho(dados, 'id') ? 1 : 0;
   let linhaExistente = -1;
-  for(let i = 1; i < dados.length; i++){
+  for(let i = inicio; i < dados.length; i++){
     if(String(dados[i][0]) === String(item.id)){
       linhaExistente = i + 1; // linha real na planilha (1-indexed)
       break;
@@ -592,7 +601,8 @@ function adicionarConta(nome){
   if(!nome) return;
   const sh = getOuCriarAba(SHEET_CONTAS, ['nome']);
   const dados = sh.getDataRange().getValues();
-  for(let i = 1; i < dados.length; i++){
+  const inicio = temCabecalho(dados, 'nome') ? 1 : 0;
+  for(let i = inicio; i < dados.length; i++){
     if(String(dados[i][0]).toLowerCase() === String(nome).toLowerCase()) return; // já existe
   }
   sh.appendRow([nome]);
@@ -1081,18 +1091,24 @@ document.getElementById('btnSalvarUrl').addEventListener('click', ()=>{
 });
 
 async function enviarLancamento(url, item){
-  await fetch(url, {
+  const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ action:'upsertLancamento', item })
   });
+  if(!resp.ok) throw new Error('Servidor respondeu ' + resp.status + ' ao enviar lançamento');
+  const json = await resp.json();
+  if(json && json.error) throw new Error('Apps Script: ' + json.error);
 }
 async function enviarConta(url, nome){
-  await fetch(url, {
+  const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ action:'addConta', nome })
   });
+  if(!resp.ok) throw new Error('Servidor respondeu ' + resp.status + ' ao enviar conta');
+  const json = await resp.json();
+  if(json && json.error) throw new Error('Apps Script: ' + json.error);
 }
 
 function mesclarLancamentosRemotos(remotos){
@@ -1140,23 +1156,33 @@ async function syncAgora(manual){
     // 1. envia lançamentos pendentes (novos ou excluídos localmente)
     const lista = getLancamentos();
     const pendentes = lista.filter(l => !l.synced);
+    let erroEnvio = null;
     for(const item of pendentes){
-      await enviarLancamento(cfg.gasUrl, item);
-      item.synced = true;
+      try{
+        await enviarLancamento(cfg.gasUrl, item);
+        item.synced = true;
+      }catch(errItem){
+        erroEnvio = errItem; // guarda o item(ns) já enviados até aqui e para
+        break;
+      }
     }
-    if(pendentes.length) salvarLancamentos(lista);
+    if(pendentes.length) salvarLancamentos(lista); // salva o progresso parcial mesmo se algo falhar no meio
+    if(erroEnvio) throw erroEnvio;
 
     // 2. envia contas pessoais novas
     const contasPendentes = getContasPendentes();
+    const contasEnviadas = [];
     for(const nome of contasPendentes){
       await enviarConta(cfg.gasUrl, nome);
+      contasEnviadas.push(nome);
     }
-    if(contasPendentes.length) limparContasPendentes();
+    if(contasEnviadas.length) limparContasPendentes();
 
     // 3. busca alterações do servidor desde a última sincronização
     const resp = await fetch(`${cfg.gasUrl}?action=getAll&since=${cfg.lastSync||0}`);
+    if(!resp.ok) throw new Error('Servidor respondeu ' + resp.status + ' ao buscar dados');
     const json = await resp.json();
-    if(json.error) throw new Error(json.error);
+    if(json.error) throw new Error('Apps Script: ' + json.error);
 
     mesclarLancamentosRemotos(json.lancamentos);
     mesclarContasRemotas(json.contas);
@@ -1169,7 +1195,9 @@ async function syncAgora(manual){
     renderizarTudo();
   }catch(err){
     console.error('Erro de sincronização', err);
-    setSyncStatus('Falha na sincronização — tentando de novo em breve', 'erro');
+    const msg = (err && err.message) ? err.message : String(err);
+    setSyncStatus('Falha: ' + msg.slice(0,80), 'erro');
+    if(manual) alert('Não foi possível sincronizar.\n\nMotivo: ' + msg + '\n\nVerifique a URL do Apps Script, a conexão com a internet e se a implantação está com acesso "Qualquer pessoa".');
   }finally{
     sincronizando = false;
   }
