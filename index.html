@@ -297,7 +297,10 @@
     <div class="btnrow" style="margin-top:8px;">
       <button id="btnVerCodigoGas">📄 Ver código do Apps Script</button>
     </div>
-    <div class="help">Cole aqui a URL gerada ao implantar o Apps Script como Web App (acesso: qualquer pessoa). Todos os aparelhos que usarem a mesma URL vão sincronizar entre si.</div>
+    <div class="btnrow" style="margin-top:8px;">
+      <button id="btnForcarResync">🔁 Forçar re-sincronização completa</button>
+    </div>
+    <div class="help">Cole aqui a URL gerada ao implantar o Apps Script como Web App (acesso: qualquer pessoa). Todos os aparelhos que usarem a mesma URL vão sincronizar entre si.<br><br>Se os lançamentos sumirem da tela mas continuarem na planilha, use "Forçar re-sincronização completa" — ele ignora o histórico salvo e baixa tudo de novo do zero, sem apagar nada.</div>
 
     <div style="border-top:1px solid var(--border); margin-top:12px; padding-top:12px;">
       <label style="margin-top:0;">Backup local (segunda camada, independente do Google)</label>
@@ -1089,6 +1092,14 @@ document.getElementById('btnSalvarUrl').addEventListener('click', ()=>{
   document.getElementById('syncPanel').classList.remove('aberto');
   syncAgora(true);
 });
+document.getElementById('btnForcarResync').addEventListener('click', ()=>{
+  const cfg = getConfig();
+  if(!cfg.gasUrl){ alert('Cole e salve a URL do Apps Script antes de sincronizar.'); return; }
+  if(!confirm('Isso vai baixar TODOS os lançamentos e contas da planilha de novo, mesclando com o que está no aparelho (nada é apagado). Pode levar alguns segundos se houver muitos lançamentos. Continuar?')) return;
+  cfg.lastSync = 0;
+  salvarConfig(cfg);
+  syncAgora(true);
+});
 
 async function enviarLancamento(url, item){
   const resp = await fetch(url, {
@@ -1179,7 +1190,12 @@ async function syncAgora(manual){
     if(contasEnviadas.length) limparContasPendentes();
 
     // 3. busca alterações do servidor desde a última sincronização
-    const resp = await fetch(`${cfg.gasUrl}?action=getAll&since=${cfg.lastSync||0}`);
+    // Blindagem: se a lista local estiver vazia (ex: dado local se perdeu por
+    // algum motivo), ignora o carimbo de tempo salvo e busca TUDO de novo,
+    // pra nunca "esconder" dados que já existem na planilha.
+    const localVazio = getLancamentos().length === 0;
+    const sinceParam = localVazio ? 0 : (cfg.lastSync || 0);
+    const resp = await fetch(`${cfg.gasUrl}?action=getAll&since=${sinceParam}`);
     if(!resp.ok) throw new Error('Servidor respondeu ' + resp.status + ' ao buscar dados');
     const json = await resp.json();
     if(json.error) throw new Error('Apps Script: ' + json.error);
