@@ -522,8 +522,36 @@ function getOuCriarAba(nome, cabecalho){
     sh = ss.insertSheet(nome);
     sh.appendRow(cabecalho);
     sh.setFrozenRows(1);
+    // Colunas "data" (B) e "hora" (H) da aba de lançamentos: força texto puro,
+    // pra impedir o Sheets de converter sozinho em valor de Data/Hora
+    // (isso corrompe a comparação de data que o app faz).
+    if(nome === SHEET_LANC){
+      sh.getRange('B2:B').setNumberFormat('@');
+      sh.getRange('H2:H').setNumberFormat('@');
+    }
   }
   return sh;
+}
+
+// Se o Sheets já converteu a célula pra Data/Hora automaticamente (célula antiga,
+// ou coluna ainda não formatada como texto), devolve a string original esperada
+// pelo app em vez do objeto Date "cru".
+function normalizarData(val){
+  if(Object.prototype.toString.call(val) === '[object Date]'){
+    const y = val.getFullYear();
+    const m = String(val.getMonth()+1).padStart(2,'0');
+    const d = String(val.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+  return String(val || '');
+}
+function normalizarHora(val){
+  if(Object.prototype.toString.call(val) === '[object Date]'){
+    const h = String(val.getHours()).padStart(2,'0');
+    const m = String(val.getMinutes()).padStart(2,'0');
+    return `${h}:${m}`;
+  }
+  return String(val || '');
 }
 
 // Detecta se a primeira linha é mesmo o cabeçalho (evita pular a 1ª linha
@@ -544,13 +572,13 @@ function buscarTudo(since){
     if(updatedAt > since){
       lancamentos.push({
         id: String(row[0]),
-        data: String(row[1]),
+        data: normalizarData(row[1]),
         categoria: String(row[2]),
         tipo: String(row[3]),
         forma: String(row[4]),
         valor: Number(row[5]),
         detalhe: String(row[6] || ''),
-        hora: String(row[7] || ''),
+        hora: normalizarHora(row[7]),
         updatedAt: updatedAt,
         deleted: (row[9] === true || row[9] === 'true' || row[9] === 'TRUE')
       });
@@ -592,6 +620,12 @@ function upsertLancamento(item){
     Number(item.updatedAt),
     item.deleted ? true : false
   ];
+
+  const linhaEscrita = (linhaExistente === -1) ? (dados.length + 1) : linhaExistente;
+  // Garante texto puro nas colunas B (data) e H (hora) ANTES de gravar o valor,
+  // pra impedir o Sheets de converter em Data/Hora automaticamente.
+  sh.getRange(linhaEscrita, 2).setNumberFormat('@');
+  sh.getRange(linhaEscrita, 8).setNumberFormat('@');
 
   if(linhaExistente === -1){
     sh.appendRow(valores);
