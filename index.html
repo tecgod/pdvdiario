@@ -1139,7 +1139,8 @@ async function enviarLancamento(url, item){
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action:'upsertLancamento', item })
+    body: JSON.stringify({ action:'upsertLancamento', item }),
+    cache: 'no-store'
   });
   if(!resp.ok) throw new Error('Servidor respondeu ' + resp.status + ' ao enviar lançamento');
   const json = await resp.json();
@@ -1149,7 +1150,8 @@ async function enviarConta(url, nome){
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action:'addConta', nome })
+    body: JSON.stringify({ action:'addConta', nome }),
+    cache: 'no-store'
   });
   if(!resp.ok) throw new Error('Servidor respondeu ' + resp.status + ' ao enviar conta');
   const json = await resp.json();
@@ -1229,7 +1231,7 @@ async function syncAgora(manual){
     // pra nunca "esconder" dados que já existem na planilha.
     const localVazio = getLancamentos().length === 0;
     const sinceParam = localVazio ? 0 : (cfg.lastSync || 0);
-    const resp = await fetch(`${cfg.gasUrl}?action=getAll&since=${sinceParam}`);
+    const resp = await fetch(`${cfg.gasUrl}?action=getAll&since=${sinceParam}&_=${Date.now()}`, { cache:'no-store' });
     if(!resp.ok) throw new Error('Servidor respondeu ' + resp.status + ' ao buscar dados');
     const json = await resp.json();
     if(json.error) throw new Error('Apps Script: ' + json.error);
